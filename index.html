@@ -109,30 +109,34 @@ let direction = new THREE.Vector3();
 let prevTime = performance.now();
 
 function init() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x87CEEB);
-  
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 1.7, 5);
-  
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  document.getElementById('game-container').appendChild(renderer.domElement);
-  
-  controls = new PointerLockControls(camera, document.body);
-  
-  const light = new THREE.AmbientLight(0x404040);
-  scene.add(light);
-  
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  directionalLight.position.set(5, 5, 5);
-  directionalLight.castShadow = true;
-  scene.add(directionalLight);
-  
-  createScene();
-  setupEventListeners();
-  animate();
+  try {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 1.7, 5);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.getElementById('game-container').appendChild(renderer.domElement);
+    
+    controls = new PointerLockControls(camera, document.body);
+    
+    const light = new THREE.AmbientLight(0x404040);
+    scene.add(light);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+    
+    createScene();
+    setupEventListeners();
+    animate();
+  } catch (error) {
+    console.error('Initialization error:', error);
+  }
 }
 
 function createScene() {
@@ -249,63 +253,89 @@ function onKeyUp(event) {
 
 function onInteract() {
   if (canInteract) {
-    door.rotation.y = door.rotation.y === 0 ? Math.PI / 2 : 0;
+    try {
+      door.rotation.y = door.rotation.y === 0 ? Math.PI / 2 : 0;
+    } catch (error) {
+      console.error('Door interaction error:', error);
+    }
   }
 }
 
 function checkDoorProximity() {
-  const doorPosition = new THREE.Vector3();
-  door.getWorldPosition(doorPosition);
-  const distance = camera.position.distanceTo(doorPosition);
-  
-  if (distance < 3) {
-    canInteract = true;
-    document.getElementById('interaction-prompt').style.display = 'block';
-  } else {
-    canInteract = false;
-    document.getElementById('interaction-prompt').style.display = 'none';
+  try {
+    const doorPosition = new THREE.Vector3();
+    door.getWorldPosition(doorPosition);
+    const distance = camera.position.distanceTo(doorPosition);
+    
+    if (distance < 3) {
+      canInteract = true;
+      document.getElementById('interaction-prompt').style.display = 'block';
+    } else {
+      canInteract = false;
+      document.getElementById('interaction-prompt').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Door proximity check error:', error);
   }
 }
 
 function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  try {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  } catch (error) {
+    console.error('Window resize error:', error);
+  }
 }
 
 function animate() {
-  requestAnimationFrame(animate);
-  
-  if (controls.isLocked) {
-    const time = performance.now();
-    const delta = (time - prevTime) / 1000;
+  try {
+    requestAnimationFrame(animate);
     
-    playerVelocity.x = 0;
-    playerVelocity.z = 0;
-    
-    direction.z = Number(moveForward) - Number(moveBackward);
-    direction.x = Number(moveRight) - Number(moveLeft);
-    direction.normalize();
-    
-    if (moveForward || moveBackward) {
-      playerVelocity.z -= direction.z * 5.0 * delta;
+    if (controls.isLocked) {
+      const time = performance.now();
+      const delta = (time - prevTime) / 1000;
+      
+      playerVelocity.x = 0;
+      playerVelocity.z = 0;
+      
+      direction.z = Number(moveForward) - Number(moveBackward);
+      direction.x = Number(moveRight) - Number(moveLeft);
+      direction.normalize();
+      
+      if (moveForward || moveBackward) {
+        playerVelocity.z -= direction.z * 5.0 * delta;
+      }
+      if (moveLeft || moveRight) {
+        playerVelocity.x -= direction.x * 5.0 * delta;
+      }
+      
+      controls.moveRight(-playerVelocity.x);
+      controls.moveForward(-playerVelocity.z);
+      
+      checkDoorProximity();
+      
+      prevTime = time;
     }
-    if (moveLeft || moveRight) {
-      playerVelocity.x -= direction.x * 5.0 * delta;
-    }
     
-    controls.moveRight(-playerVelocity.x);
-    controls.moveForward(-playerVelocity.z);
-    
-    checkDoorProximity();
-    
-    prevTime = time;
+    renderer.render(scene, camera);
+  } catch (error) {
+    console.error('Animation error:', error);
   }
-  
-  renderer.render(scene, camera);
 }
 
-init();
+window.addEventListener('load', () => {
+  try {
+    init();
+  } catch (error) {
+    console.error('Game initialization error:', error);
+  }
+});
+
+window.addEventListener('unhandledrejection', event => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>

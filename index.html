@@ -1,0 +1,242 @@
+<html><head><base href="https://game.example.com/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D House Cooking Game</title>
+<script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  touch-action: none;
+  font-family: Arial, sans-serif;
+}
+
+#game-container {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+#ui-overlay {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 10px;
+  border-radius: 10px;
+  color: white;
+  z-index: 100;
+  text-align: center;
+}
+
+.ingredient-btn {
+  background: #4CAF50;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  margin: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#cooking-progress {
+  width: 200px;
+  height: 20px;
+  background: #ddd;
+  border-radius: 10px;
+  margin: 10px auto;
+  display: none;
+}
+
+#progress-bar {
+  width: 0%;
+  height: 100%;
+  background: #4CAF50;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+</style>
+</head>
+<body>
+<div id="game-container"></div>
+<div id="ui-overlay">
+  <div id="cooking-progress">
+    <div id="progress-bar"></div>
+  </div>
+  <button class="ingredient-btn" onclick="addIngredient('tomato')">Add Tomato</button>
+  <button class="ingredient-btn" onclick="addIngredient('carrot')">Add Carrot</button>
+  <button class="ingredient-btn" onclick="startCooking()">Start Cooking!</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let scene, camera, renderer, controls;
+let house, pot;
+let ingredients = [];
+let cooking = false;
+
+function init() {
+  // Scene setup
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87CEEB);
+
+  // Camera setup
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 5, 10);
+
+  // Renderer setup
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.getElementById('game-container').appendChild(renderer.domElement);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(5, 5, 5);
+  directionalLight.castShadow = true;
+  scene.add(directionalLight);
+
+  createHouse();
+  createPot();
+
+  // Handle window resize
+  window.addEventListener('resize', onWindowResize, false);
+
+  animate();
+}
+
+function createHouse() {
+  // Simple house geometry
+  const houseGeometry = new THREE.BoxGeometry(8, 6, 8);
+  const houseMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+  house = new THREE.Mesh(houseGeometry, houseMaterial);
+  house.position.y = 3;
+  house.receiveShadow = true;
+  scene.add(house);
+
+  // Roof
+  const roofGeometry = new THREE.ConeGeometry(6, 4, 4);
+  const roofMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
+  const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+  roof.position.y = 8;
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  scene.add(roof);
+
+  // Floor
+  const floorGeometry = new THREE.PlaneGeometry(20, 20);
+  const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+}
+
+function createPot() {
+  const potGeometry = new THREE.CylinderGeometry(1, 0.8, 1.5, 32);
+  const potMaterial = new THREE.MeshPhongMaterial({ color: 0x404040 });
+  pot = new THREE.Mesh(potGeometry, potMaterial);
+  pot.position.set(0, 1, 0);
+  pot.castShadow = true;
+  scene.add(pot);
+}
+
+function addIngredient(type) {
+  const geometry = new THREE.SphereGeometry(0.3, 32, 32);
+  const color = type === 'tomato' ? 0xff0000 : 0xff6b00;
+  const material = new THREE.MeshPhongMaterial({ color: color });
+  const ingredient = new THREE.Mesh(geometry, material);
+  
+  ingredient.position.set(
+    pot.position.x + (Math.random() - 0.5),
+    pot.position.y + 0.5,
+    pot.position.z + (Math.random() - 0.5)
+  );
+  
+  ingredient.castShadow = true;
+  scene.add(ingredient);
+  ingredients.push(ingredient);
+}
+
+function startCooking() {
+  if (ingredients.length === 0) return;
+  
+  cooking = true;
+  document.getElementById('cooking-progress').style.display = 'block';
+  
+  let progress = 0;
+  const cookingInterval = setInterval(() => {
+    progress += 1;
+    document.getElementById('progress-bar').style.width = `${progress}%`;
+    
+    ingredients.forEach(ingredient => {
+      ingredient.scale.multiplyScalar(0.99);
+    });
+    
+    if (progress >= 100) {
+      clearInterval(cookingInterval);
+      cooking = false;
+      ingredients.forEach(ingredient => scene.remove(ingredient));
+      ingredients = [];
+      document.getElementById('cooking-progress').style.display = 'none';
+      document.getElementById('progress-bar').style.width = '0%';
+    }
+  }, 100);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  
+  if (cooking) {
+    pot.rotation.y += 0.01;
+    ingredients.forEach(ingredient => {
+      ingredient.rotation.y += 0.02;
+    });
+  }
+  
+  renderer.render(scene, camera);
+}
+
+init();
+
+// Make functions globally available
+window.addIngredient = addIngredient;
+window.startCooking = startCooking;
+</script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
